@@ -1,0 +1,10 @@
+[
+    {
+        "label": "Compile",
+        "command": "pio run -t compiledb"
+    },
+    {
+        "label": "Upload",
+        "command": "pio run -t upload"
+    }
+]
