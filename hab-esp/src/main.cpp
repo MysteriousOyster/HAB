@@ -229,7 +229,7 @@ void setup_sd()
     SD.mkdir("/pic");
   }
 
-  File datalog = SD.open("/DATALOG.txt", FILE_WRITE);
+  File datalog = SD.open(DATALOG_NAME, FILE_WRITE);
   if (datalog)
   {
     datalog.println("[INFO] DATALOG INITIALIZED");
