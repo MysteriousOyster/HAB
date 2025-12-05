@@ -4,22 +4,20 @@
 #include <RH_RF95.h>
 #include "esp_camera.h"
 #include "base64.h"
-#include <SD.h>
+// #include <SD.h>
 
 // ANCHOR Pin definitions
 // NOTE Led should be grounded.
-#define LED_PIN 16
+#define LED_PIN 4
 
 // TODO update these
 #define RF_DIO0 2
 #define RF_CS 15
-#define RF_RST 4
+#define RF_RST 16
 
 #define SPI_SCK 14
 #define SPI_MISO 12
 #define SPI_MOSI 13
-
-#define SD_CS 16
 
 // NOTE Here are the pins
 // MOSI => D11
@@ -46,15 +44,17 @@
 #define PCLK_GPIO_NUM 22
 
 // ANCHOR Program settings definitions
-#define RF_FREQ 903.0
+#define RF_FREQ 915.0
 #define RF_BAND 125000
 #define RF_SPREAD 12
-#define RF_CODING 5
-#define RF_TX_PWR 7
+#define RF_CODING 8
+#define RF_TX_PWR 20
 
 #define DATALOG_NAME "/DATALOG.txt"
 
 // ANCHOR Function preludes
+void take_picture_send_picture();
+
 // Sets up pins
 void setup_pins();
 
@@ -67,14 +67,11 @@ void setup_rf();
 // Setup the camera
 void setup_camera();
 
-// Setup the SD
-void setup_sd();
-
 // Send a message through RF
 void send_msg(const char *msg);
 
-// Log data to SD (expensive)
-void log_sd(const char *log);
+// Send picture from fb
+void send_image(camera_fb_t *fb);
 
 // ANCHOR Global vars
 RH_RF95 rf95(RF_CS, RF_DIO0);
@@ -85,17 +82,37 @@ void setup()
 {
   Serial.begin(9600);
   delay(500);
-  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, RF_CS);
   Serial.println("Setting up pins...");
   setup_pins();
-  setup_sd();
-  // setup_rf();
+  setup_rf();
   setup_camera();
   delay(500);
-  log_sd("[INFO] Setup finished.");
 }
 
 void loop()
+{
+  if (rf95.waitAvailableTimeout(3000))
+  {
+    char buf[RH_RF95_MAX_MESSAGE_LEN];
+    uint8_t len = sizeof(buf);
+    rf95.recv((uint8_t *)buf, &len);
+    if (strcmp(buf, "REQ_PIC"))
+    {
+      send_msg("PIC_BACK");
+      rf95.waitPacketSent();
+      delay(1000);
+      take_picture_send_picture();
+    }
+    else if (strcmp(buf, "REQ_PING"))
+    {
+      send_msg("PING_BACK");
+      rf95.waitPacketSent();
+    }
+  }
+}
+
+void take_picture_send_picture()
 {
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb)
@@ -106,16 +123,9 @@ void loop()
     return;
   }
 
-  String encoded = base64::encode(fb->buf, fb->len);
-
-  log_picture(fb);
+  send_image(fb);
 
   esp_camera_fb_return(fb);
-
-  // send_msg(encoded.c_str());
-  // rf95.waitPacketSent();
-
-  delay(5000);
 }
 
 void setup_pins()
@@ -129,8 +139,6 @@ void setup_pins()
   delay(100);
   digitalWrite(RF_RST, HIGH);
   delay(100);
-  pinMode(SD_CS, OUTPUT);
-  digitalWrite(SD_CS, HIGH);
 }
 
 void setup_failure()
@@ -178,6 +186,21 @@ void setup_rf()
   Serial.println("dBm power");
 }
 
+void send_msg(const char *msg)
+{
+  char buf[RH_RF95_MAX_MESSAGE_LEN];
+
+  const uint8_t len = sprintf(buf, msg) + 1;
+
+  Serial.print("S[");
+  Serial.print(len);
+  Serial.print("]<");
+  Serial.print(buf);
+  Serial.println(">");
+
+  rf95.send((uint8_t *)buf, len);
+}
+
 void setup_camera()
 {
   camera_config_t config;
@@ -213,87 +236,30 @@ void setup_camera()
   }
 }
 
-void setup_sd()
+void send_image(camera_fb_t *fb)
 {
+  String encoded = base64::encode(fb->buf, fb->len);
+  size_t total_len = strlen(encoded.c_str());
+  const size_t chunk_size = RH_RF95_MAX_MESSAGE_LEN - 1;
 
-  if (!SD.begin(SD_CS))
+  uint16_t total_packets = (total_len + chunk_size - 1) / chunk_size;
+
+  send_msg("--BEGIN IMAGE--");
+  rf95.waitPacketSent();
+
+  for (uint16_t i = 0; i < total_packets; i++)
   {
-    Serial.println("[E] SD init failed.");
-    setup_failure();
-  }
-
-  if (SD.exists(DATALOG_NAME))
-    SD.remove(DATALOG_NAME);
-
-  if (SD.exists("/pic"))
-  {
-    SD.remove("/pic");
-    SD.mkdir("/pic");
-  }
-
-  File datalog = SD.open(DATALOG_NAME, FILE_WRITE);
-  if (datalog)
-  {
-    datalog.println("[INFO] DATALOG INITIALIZED");
-    datalog.close();
-  }
-  else
-  {
-    Serial.println("[E] Failed to open datalog");
-    setup_failure();
-  }
-}
-
-void send_msg(const char *msg)
-{
-  char buf[RH_RF95_MAX_MESSAGE_LEN];
-
-  const uint8_t len = sprintf(buf, msg) + 1;
-
-  Serial.print("S[");
-  Serial.print(len);
-  Serial.print("]<");
-  Serial.print(buf);
-  Serial.println(">");
-
-  rf95.send((uint8_t *)buf, len);
-}
-
-void log_sd(const char *log)
-{
-  for (uint8_t attempts = 0; attempts < 10; attempts++)
-  {
-    File datalog = SD.open("/DATALOG.txt", FILE_APPEND);
-    if (datalog)
-    {
-      datalog.print("[");
-      datalog.print(millis());
-      datalog.print("] ");
-      datalog.println(log);
-      break;
-    }
-    datalog.close();
-    delay(100);
-  }
-}
-
-void log_picture(camera_fb_t *fb)
-{
-  char filename[CONFIG_FATFS_MAX_LFN];
-  sprintf(filename, "/pic/%d.jpg", picture_counter++);
-  File picture = SD.open(filename, FILE_WRITE);
-  if (!picture)
-  {
-    Serial.println("[E] Failed to open image.");
+    size_t start = i * chunk_size;
+    size_t len = min(chunk_size, total_len - start);
+    char packet[RH_RF95_MAX_MESSAGE_LEN];
+    int n = snprintf(packet, sizeof(packet), "%.*s", (int)len, encoded + start);
+    rf95.send((uint8_t *)packet, n);
+    rf95.waitPacketSent();
     digitalWrite(LED_PIN, HIGH);
-    delay(1000);
+    delay(50);
     digitalWrite(LED_PIN, LOW);
-    return;
   }
-  else
-  {
-    picture.write(fb->buf, fb->len);
-  }
-  picture.close();
-  delay(100);
+
+  send_msg("--END IMAGE--");
+  rf95.waitPacketSent();
 }

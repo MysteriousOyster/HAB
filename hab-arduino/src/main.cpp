@@ -18,11 +18,11 @@
 // SCK => D13
 
 // ANCHOR Program settings definitions
-#define RF_FREQ 903.0
+#define RF_FREQ 915.0
 #define RF_BAND 125000
 #define RF_SPREAD 12
-#define RF_CODING 5
-#define RF_TX_PWR 7
+#define RF_CODING 8
+#define RF_TX_PWR 20
 
 // ANCHOR Function preludes
 // Sets up pins
@@ -37,13 +37,17 @@ void setup_rf();
 // Send a message through RF
 void send_msg(const char *msg);
 
+void print_recv(char buf[RH_RF95_MAX_MESSAGE_LEN], uint8_t len);
+
 // ANCHOR Global vars
 RH_RF95 rf95(RF_CS, RF_DIO0);
 
 void setup()
 {
   Serial.begin(9600);
-  while(!Serial) {}
+  while (!Serial)
+  {
+  }
   delay(1000);
 
   SPI.begin();
@@ -55,33 +59,61 @@ void setup()
 void loop()
 {
   Serial.println("Waiting for input.");
+  Serial.println("p: ping");
+  Serial.println("i: image");
   while (!Serial.available())
     delay(10);
-  Serial.read();
+  char c = Serial.read();
 
-  Serial.println("Ok, sending.");
-
-  send_msg("REQ_PIC");
-  rf95.waitPacketSent();
-
-  if (rf95.waitAvailableTimeout(3000))
+  switch (c)
   {
-    char buf[RH_RF95_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
-
-    if (rf95.recv((uint8_t *)buf, &len))
+  case 'p':
+    Serial.println("p ");
+    Serial.println("Ok, pinging...");
+    send_msg("REQ_PING");
+    rf95.waitPacketSent();
+    if (rf95.waitAvailableTimeout(5000))
     {
-      Serial.print("R[");
-      Serial.println(len);
-      Serial.print("]<");
-      Serial.print(buf);
-      Serial.print("> RSSI: ");
-      Serial.println(rf95.lastRssi(), DEC);
+      char buf[RH_RF95_MAX_MESSAGE_LEN];
+      uint8_t len = sizeof(buf);
+      rf95.recv((uint8_t *)buf, &len);
+      print_recv(buf, len);
     }
-  }
-  else
-  {
-    Serial.println("No response received!");
+    else
+    {
+      Serial.println("No response received.");
+    }
+    break;
+  case 'i':
+    Serial.println("i");
+    Serial.println("Ok, requesting image.");
+    send_msg("REQ_PIC");
+    rf95.waitPacketSent();
+    if (rf95.waitAvailableTimeout(5000))
+    {
+      char buf[RH_RF95_MAX_MESSAGE_LEN];
+      uint8_t len = sizeof(buf);
+      rf95.recv((uint8_t *)buf, &len);
+      print_recv(buf, len);
+      Serial.println("Outputting until key pressed.");
+      Serial.flush();
+      while (!Serial.available())
+      {
+        if (rf95.available())
+        {
+          char buf[RH_RF95_MAX_MESSAGE_LEN];
+          uint8_t len = sizeof(buf);
+          rf95.recv((uint8_t *)buf, &len);
+          Serial.println(buf);
+        }
+        delay(10);
+      }
+      Serial.read();
+    }
+    break;
+  default:
+    Serial.print("?");
+    break;
   }
 }
 
@@ -156,4 +188,14 @@ void send_msg(const char *msg)
   Serial.println(">");
 
   rf95.send((uint8_t *)buf, len);
+}
+
+void print_recv(char buf[RH_RF95_MAX_MESSAGE_LEN], uint8_t len)
+{
+  Serial.print("R[");
+  Serial.print(len);
+  Serial.print("]<");
+  Serial.print(buf);
+  Serial.print("> RSSI: ");
+  Serial.println(rf95.lastRssi());
 }

@@ -1,0 +1,15 @@
+{
+  "folders": [
+	{
+		"path": "hab-arduino"
+	},
+	{
+		"name": "hab-esp",
+		"path": "hab-esp"
+	},
+	{
+		"path": "hab-cam"
+	}
+],
+  "settings": {}
+}
