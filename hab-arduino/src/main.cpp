@@ -18,11 +18,11 @@
 // SCK => D13
 
 // ANCHOR Program settings definitions
-#define RF_FREQ 915.0
+#define RF_FREQ 914.0
 #define RF_BAND 125000
 #define RF_SPREAD 12
-#define RF_CODING 8
-#define RF_TX_PWR 17
+#define RF_CODING 5
+#define RF_TX_PWR 7
 
 // ANCHOR Function preludes
 // Sets up pins
@@ -45,6 +45,8 @@ void setup()
   Serial.begin(9600);
   while(!Serial) {}
   delay(1000);
+
+  SPI.begin();
   Serial.println("Setting up pins...");
   setup_pins();
   setup_rf();
@@ -86,12 +88,14 @@ void loop()
 void setup_pins()
 {
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
+  digitalWrite(LED_PIN, HIGH);
   pinMode(RF_RST, OUTPUT);
   digitalWrite(RF_RST, HIGH);
-  delay(50);
+  delay(100);
   digitalWrite(RF_RST, LOW);
-  delay(50);
+  delay(100);
+  digitalWrite(RF_RST, HIGH);
+  delay(100);
 }
 
 void setup_failure()
@@ -124,6 +128,7 @@ void setup_rf()
   rf95.setSpreadingFactor(RF_SPREAD);
   rf95.setCodingRate4(RF_CODING);
   rf95.setTxPower(RF_TX_PWR, false);
+  rf95.setPayloadCRC(false);
 
   Serial.println("RF inited at the following settings:");
   Serial.print(RF_FREQ);
@@ -147,7 +152,7 @@ void send_msg(const char *msg)
   Serial.print("S[");
   Serial.print(len);
   Serial.print("]<");
-  Serial.print(*buf);
+  Serial.print(buf);
   Serial.println(">");
 
   rf95.send((uint8_t *)buf, len);

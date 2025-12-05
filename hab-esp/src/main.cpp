@@ -1,16 +1,20 @@
-// RECEIVER FUNCTION
+// TRANSMITTER FUNCTION
 
 #include <Arduino.h>
 #include <RH_RF95.h>
 
 // ANCHOR Pin definitions
 // NOTE Led should be grounded.
-#define LED_PIN 3
+#define LED_PIN 16
 
 // TODO update these
 #define RF_DIO0 2
-#define RF_CS 5
-#define RF_RST 8
+#define RF_CS 15
+#define RF_RST 4
+
+#define SPI_SCK 14
+#define SPI_MISO 12
+#define SPI_MOSI 13
 
 // NOTE Here are the pins
 // MOSI => D11
@@ -18,11 +22,11 @@
 // SCK => D13
 
 // ANCHOR Program settings definitions
-#define RF_FREQ 915.0
+#define RF_FREQ 914.0
 #define RF_BAND 125000
 #define RF_SPREAD 12
-#define RF_CODING 8
-#define RF_TX_PWR 17
+#define RF_CODING 5
+#define RF_TX_PWR 7
 
 // ANCHOR Function preludes
 // Sets up pins
@@ -35,16 +39,16 @@ void setup_failure();
 void setup_rf();
 
 // Send a message through RF
-void send_msg(char buf[RH_RF95_MAX_MESSAGE_LEN], const char* msg);
+void send_msg(const char *msg);
 
 // ANCHOR Global vars
 RH_RF95 rf95(RF_CS, RF_DIO0);
-char buf[RH_RF95_MAX_MESSAGE_LEN];
 
 void setup()
 {
   Serial.begin(9600);
   delay(1000);
+  SPI.begin();
   Serial.println("Setting up pins...");
   setup_pins();
   setup_rf();
@@ -52,17 +56,27 @@ void setup()
 
 void loop()
 {
-  
+
+  Serial.println("Ok, sending.");
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, RF_CS);
+
+  send_msg("EXAMPLE_DATA");
+  rf95.waitPacketSent();
+
+  delay(5000);
 }
 
 void setup_pins()
 {
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
+  digitalWrite(LED_PIN, HIGH);
   pinMode(RF_RST, OUTPUT);
   digitalWrite(RF_RST, HIGH);
-  delay(50);
+  delay(100);
   digitalWrite(RF_RST, LOW);
+  delay(100);
+  digitalWrite(RF_RST, HIGH);
+  delay(100);
 }
 
 void setup_failure()
@@ -75,6 +89,7 @@ void setup_failure()
     {
       led_state = !led_state;
       digitalWrite(LED_PIN, led_state);
+      last_triggered = millis();
     }
   }
   exit(EXIT_FAILURE);
@@ -94,6 +109,7 @@ void setup_rf()
   rf95.setSpreadingFactor(RF_SPREAD);
   rf95.setCodingRate4(RF_CODING);
   rf95.setTxPower(RF_TX_PWR, false);
+  rf95.setPayloadCRC(false);
 
   Serial.println("RF inited at the following settings:");
   Serial.print(RF_FREQ);
@@ -108,14 +124,16 @@ void setup_rf()
   Serial.println("dBm power");
 }
 
-void send_msg(char *buf[RH_RF95_MAX_MESSAGE_LEN], const char *msg)
+void send_msg(const char *msg)
 {
-  const uint8_t len = sprintf(*buf, msg) + 1;
+  char buf[RH_RF95_MAX_MESSAGE_LEN];
+
+  const uint8_t len = sprintf(buf, msg) + 1;
 
   Serial.print("S[");
   Serial.print(len);
   Serial.print("]<");
-  Serial.print(*buf);
+  Serial.print(buf);
   Serial.println(">");
 
   rf95.send((uint8_t *)buf, len);
