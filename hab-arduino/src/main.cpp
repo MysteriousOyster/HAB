@@ -9,7 +9,7 @@
 
 // TODO update these
 #define RF_DIO0 2
-#define RF_CS 5
+#define RF_CS 7
 #define RF_RST 8
 
 // NOTE Here are the pins
@@ -35,15 +35,15 @@ void setup_failure();
 void setup_rf();
 
 // Send a message through RF
-void send_msg(char buf[RH_RF95_MAX_MESSAGE_LEN], const char* msg);
+void send_msg(const char *msg);
 
 // ANCHOR Global vars
 RH_RF95 rf95(RF_CS, RF_DIO0);
-char buf[RH_RF95_MAX_MESSAGE_LEN];
 
 void setup()
 {
   Serial.begin(9600);
+  while(!Serial) {}
   delay(1000);
   Serial.println("Setting up pins...");
   setup_pins();
@@ -52,7 +52,35 @@ void setup()
 
 void loop()
 {
-  
+  Serial.println("Waiting for input.");
+  while (!Serial.available())
+    delay(10);
+  Serial.read();
+
+  Serial.println("Ok, sending.");
+
+  send_msg("REQ_PIC");
+  rf95.waitPacketSent();
+
+  if (rf95.waitAvailableTimeout(3000))
+  {
+    char buf[RH_RF95_MAX_MESSAGE_LEN];
+    uint8_t len = sizeof(buf);
+
+    if (rf95.recv((uint8_t *)buf, &len))
+    {
+      Serial.print("R[");
+      Serial.println(len);
+      Serial.print("]<");
+      Serial.print(buf);
+      Serial.print("> RSSI: ");
+      Serial.println(rf95.lastRssi(), DEC);
+    }
+  }
+  else
+  {
+    Serial.println("No response received!");
+  }
 }
 
 void setup_pins()
@@ -63,6 +91,7 @@ void setup_pins()
   digitalWrite(RF_RST, HIGH);
   delay(50);
   digitalWrite(RF_RST, LOW);
+  delay(50);
 }
 
 void setup_failure()
@@ -75,6 +104,7 @@ void setup_failure()
     {
       led_state = !led_state;
       digitalWrite(LED_PIN, led_state);
+      last_triggered = millis();
     }
   }
   exit(EXIT_FAILURE);
@@ -108,9 +138,11 @@ void setup_rf()
   Serial.println("dBm power");
 }
 
-void send_msg(char *buf[RH_RF95_MAX_MESSAGE_LEN], const char *msg)
+void send_msg(const char *msg)
 {
-  const uint8_t len = sprintf(*buf, msg) + 1;
+  char buf[RH_RF95_MAX_MESSAGE_LEN];
+
+  const uint8_t len = sprintf(buf, msg) + 1;
 
   Serial.print("S[");
   Serial.print(len);

@@ -10,10 +10,7 @@
             "includePath": [
                 "C:/Users/leifw/Documents/HAB/hab-arduino/include",
                 "C:/Users/leifw/Documents/HAB/hab-arduino/src",
-                "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/SoftwareSerial",
                 "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/RadioHead",
-                "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/Crypto",
-                "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/SD/src",
                 "C:/Users/leifw/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                 "C:/Users/leifw/.platformio/packages/framework-arduino-avr/cores/arduino",
                 "C:/Users/leifw/.platformio/packages/framework-arduino-avr/variants/standard",
@@ -28,10 +25,7 @@
                 "path": [
                     "C:/Users/leifw/Documents/HAB/hab-arduino/include",
                     "C:/Users/leifw/Documents/HAB/hab-arduino/src",
-                    "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/SoftwareSerial",
                     "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/RadioHead",
-                    "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/Crypto",
-                    "C:/Users/leifw/Documents/HAB/hab-arduino/.pio/libdeps/sparkfun_redboard/SD/src",
                     "C:/Users/leifw/.platformio/packages/framework-arduino-avr/libraries/SPI/src",
                     "C:/Users/leifw/.platformio/packages/framework-arduino-avr/cores/arduino",
                     "C:/Users/leifw/.platformio/packages/framework-arduino-avr/variants/standard",
