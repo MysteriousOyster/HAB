@@ -19,7 +19,7 @@
 #define SPI_MISO 12
 #define SPI_MOSI 13
 
-#define SD_CS 0
+#define SD_CS 16
 
 // NOTE Here are the pins
 // MOSI => D11
@@ -51,6 +51,8 @@
 #define RF_SPREAD 12
 #define RF_CODING 5
 #define RF_TX_PWR 7
+
+#define DATALOG_NAME "/DATALOG.txt"
 
 // ANCHOR Function preludes
 // Sets up pins
@@ -87,7 +89,7 @@ void setup()
   Serial.println("Setting up pins...");
   setup_pins();
   setup_sd();
-  //setup_rf();
+  // setup_rf();
   setup_camera();
   delay(500);
   log_sd("[INFO] Setup finished.");
@@ -108,8 +110,8 @@ void loop()
 
   esp_camera_fb_return(fb);
 
-  //send_msg(encoded.c_str());
-  //rf95.waitPacketSent();
+  // send_msg(encoded.c_str());
+  // rf95.waitPacketSent();
 
   delay(5000);
 }
@@ -218,8 +220,14 @@ void setup_sd()
     setup_failure();
   }
 
-  SD.remove("/pic/");
-  SD.remove("/DATALOG.txt");
+  if (SD.exists(DATALOG_NAME))
+    SD.remove(DATALOG_NAME);
+
+  if (SD.exists("/pic"))
+  {
+    SD.remove("/pic");
+    SD.mkdir("/pic");
+  }
 
   File datalog = SD.open("/DATALOG.txt", FILE_WRITE);
   if (datalog)
@@ -251,9 +259,10 @@ void send_msg(const char *msg)
 
 void log_sd(const char *log)
 {
-  for(uint8_t attempts = 0; attempts < 10; attempts++) {
+  for (uint8_t attempts = 0; attempts < 10; attempts++)
+  {
     File datalog = SD.open("/DATALOG.txt", FILE_APPEND);
-    if (datalog) 
+    if (datalog)
     {
       datalog.print("[");
       datalog.print(millis());
@@ -266,11 +275,12 @@ void log_sd(const char *log)
   }
 }
 
-void log_picture(camera_fb_t *fb) {
+void log_picture(camera_fb_t *fb)
+{
   char filename[CONFIG_FATFS_MAX_LFN];
   sprintf(filename, "/pic/%d.jpg", picture_counter++);
   File picture = SD.open(filename, FILE_WRITE);
-  if(!picture)
+  if (!picture)
   {
     Serial.println("[E] Failed to open image.");
     digitalWrite(LED_PIN, HIGH);
