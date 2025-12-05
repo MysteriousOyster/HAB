@@ -18,7 +18,7 @@
 // SCK => D13
 
 // ANCHOR Program settings definitions
-#define RF_FREQ 914.0
+#define RF_FREQ 903.0
 #define RF_BAND 125000
 #define RF_SPREAD 12
 #define RF_CODING 5
