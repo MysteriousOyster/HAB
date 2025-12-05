@@ -108,6 +108,8 @@ void loop()
 
   String encoded = base64::encode(fb->buf, fb->len);
 
+  log_picture(fb);
+
   esp_camera_fb_return(fb);
 
   // send_msg(encoded.c_str());
